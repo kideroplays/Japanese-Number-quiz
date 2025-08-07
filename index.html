@@ -20,10 +20,7 @@
       border-radius: 10px;
       background-color: #1e1e1e;
     }
-    .question {
-      font-size: 24px;
-      margin-bottom: 20px;
-    }
+    .question { font-size: 24px; margin-bottom: 20px; }
     .options button,
     .menu button,
     #start-button,
@@ -44,43 +41,17 @@
     .menu button:hover,
     #start-button:hover,
     #endQuizButton:hover,
-    #summary button:hover {
-      background-color: #444;
-    }
+    #summary button:hover { background-color: #444; }
     .menu {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: stretch;
+      display: flex; flex-direction: column; gap: 10px; align-items: stretch;
     }
-    label, p {
-      margin: 0;
-      font-size: 14px;
-      text-align: left;
-    }
-    input[type="range"] {
-      width: 100%;
-    }
-    .menu input[type="checkbox"] {
-      margin-right: 5px;
-    }
-    ul#scoreList {
-      margin-top: 10px;
-      text-align: left;
-      padding-left: 20px;
-    }
-    #result {
-      margin-top: 20px;
-      font-weight: bold;
-    }
-    #timer {
-      margin-top: 10px;
-      font-size: 18px;
-      color: #ff9800;
-    }
-    #summary {
-      margin-top: 20px;
-    }
+    label, p { margin: 0; font-size: 14px; text-align: left; }
+    input[type="range"] { width: 100%; }
+    .menu input[type="checkbox"] { margin-right: 5px; }
+    ul#scoreList { margin-top: 10px; text-align: left; padding-left: 20px; }
+    #result { margin-top: 20px; font-weight: bold; }
+    #timer { margin-top: 10px; font-size: 18px; color: #ff9800; }
+    #summary { margin-top: 20px; }
     .correct { color: lightgreen; }
     .wrong { color: salmon; }
     .selected { font-weight: bold; text-decoration: underline; }
@@ -129,28 +100,35 @@
 let questions = [];
 let currentQuestion = 0;
 let score = 0;
-let mode = "";
-let timer;
+let mode = "easy";
+let timer = null;
 let timeLeft = 0;
 let results = [];
 const numberData = [];
 
+/* ---------- FIX: 10,000 support ---------- */
 function toKanji(n) {
+  if (n === 10000) return "一万"; // ichiman
   const digits = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-  const units = ['', '十', '百', '千'];
-  let str = '' + n;
-  let len = str.length;
+  const units = ['', '十', '百', '千']; // up to 9999
+  const str = String(n);
   let kanji = '';
-  for (let i = 0; i < len; i++) {
-    const digit = +str[i];
+  for (let i = 0; i < str.length; i++) {
+    const digit = Number(str[i]);
+    const pos = str.length - i - 1; // 0->ones,1->tens,2->hundreds,3->thousands
+    if (pos > 3) break; // safety (we handled 10000 above)
     if (digit === 0) continue;
-    if (digit === 1 && i !== len - 1) kanji += units[len - i - 1];
-    else kanji += digits[digit] + units[len - i - 1];
+    if (digit === 1 && pos !== 0) {
+      kanji += units[pos];
+    } else {
+      kanji += digits[digit] + units[pos];
+    }
   }
-  return kanji;
+  return kanji || '零';
 }
 
 function toRomaji(n) {
+  if (n === 10000) return "ichiman"; // 10,000
   const ones = ["", "ichi", "ni", "san", "yon", "go", "roku", "nana", "hachi", "kyuu"];
   const tens = ["", "juu", "ni juu", "san juu", "yon juu", "go juu", "roku juu", "nana juu", "hachi juu", "kyuu juu"];
   const hundreds = ["", "hyaku", "ni hyaku", "san byaku", "yon hyaku", "go hyaku", "roppyaku", "nana hyaku", "happyaku", "kyuu hyaku"];
@@ -159,10 +137,11 @@ function toRomaji(n) {
   if (n >= 1000) r += thousands[Math.floor(n / 1000)] + " ";
   if ((n % 1000) >= 100) r += hundreds[Math.floor((n % 1000) / 100)] + " ";
   if ((n % 100) >= 10) r += tens[Math.floor((n % 100) / 10)] + " ";
-  if ((n % 10) > 0 || r === "") r += ones[n % 10];
+  if ((n % 10) > 0 || r.trim() === "") r += ones[n % 10];
   return r.trim();
 }
 
+/* ---------- build dataset (incl. 10000) ---------- */
 for (let i = 1; i <= 99; i++) {
   numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
 }
@@ -173,147 +152,8 @@ for (let i = 2000; i <= 10000; i += 1000) {
   numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
 }
 
+/* ---------- UI bindings ---------- */
 document.getElementById("start-button").addEventListener("click", startQuiz);
-
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function generateOptions(q) {
-  const set = new Set();
-  let correctAnswer;
-  if (!q || typeof q !== 'object') return ["Invalid"];
-  if (document.getElementById("countMode").checked) {
-    correctAnswer = `${q.romaji} (${q.kanji})`;
-  } else {
-    correctAnswer = mode === "easy" ? q.number?.toString()
-                  : mode === "medium" ? q.romaji
-                  : q.kanji;
-  }
-  if (!correctAnswer) correctAnswer = "(undefined)";
-  set.add(correctAnswer);
-  while (set.size < 4) {
-    const rand = numberData[Math.floor(Math.random() * numberData.length)];
-    if (!rand || typeof rand !== 'object') continue;
-    const val = document.getElementById("countMode").checked ? `${rand.romaji} (${rand.kanji})`
-              : mode === "easy" ? rand.number?.toString()
-              : mode === "medium" ? rand.romaji
-              : rand.kanji;
-    if (val) set.add(val);
-  }
-  return shuffle(Array.from(set));
-}
-
-function startQuiz() {
-  mode = document.querySelector(".menu .selected")?.id?.replace("Btn", "") || "easy";
-  score = 0;
-  currentQuestion = 0;
-  results = [];
-
-  const isUnlimited = document.getElementById("unlimitedQuestions").checked;
-  const isCountMode = document.getElementById("countMode").checked;
-  const questionCount = parseInt(document.getElementById("questionCount").value);
-  const noLimit = document.getElementById("noLimit").checked;
-  const timeLimit = parseInt(document.getElementById("timeLimit").value);
-
-  if (!noLimit) {
-    timeLeft = timeLimit;
-    document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
-    clearInterval(timer);
-timer = setInterval(() => {
-  timeLeft--;
-  document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
-  if (timeLeft <= 0) {
-    clearInterval(timer);
-    showSummary();
-  }
-}, 1000);
-  } else {
-    document.getElementById("timer").innerText = "";
-  }
-
-  if (isCountMode) {
-    questions = numberData.filter(n => n.number >= 1 && n.number <= 100);
-  } else {
-    questions = isUnlimited ? [] : shuffle([...numberData]).slice(0, questionCount);
-  }
-
-  document.getElementById("menu").style.display = "none";
-  document.getElementById("quiz").style.display = "block";
-  showQuestion();
-}
-
-function showQuestion() {
-  const isUnlimited = document.getElementById("unlimitedQuestions").checked;
-  const isCountMode = document.getElementById("countMode").checked;
-  const totalQuestions = (isUnlimited || isCountMode) ? null : questions.length;
-  let q;
-  if (isUnlimited) {
-    do {
-      q = numberData[Math.floor(Math.random() * numberData.length)];
-    } while (questions.length > 0 && q.number === questions[questions.length - 1].number);
-    questions.push(q);
-  } else {
-    if (currentQuestion >= questions.length) return showSummary();
-    q = questions[currentQuestion];
-  }
-  const options = generateOptions(q);
-  let prompt = "";
-  let answer = "";
-  if (mode === "easy") {
-    prompt = `${q.kanji} (${q.romaji})`;
-    answer = q.number.toString();
-  } else if (mode === "medium") {
-    prompt = `${q.number}`;
-    answer = q.romaji;
-  } else if (mode === "hard") {
-    prompt = `${q.romaji}`;
-    answer = q.kanji;
-  }
-  document.getElementById("progress").innerText = totalQuestions
-    ? `Question ${currentQuestion + 1} of ${totalQuestions}`
-    : `Question ${currentQuestion + 1}`;
-  document.getElementById("question").innerText = prompt;
-  const container = document.getElementById("options");
-  container.innerHTML = "";
-  options.forEach(opt => {
-    const btn = document.createElement("button");
-    btn.innerText = opt;
-    btn.onclick = () => {
-      const correct = opt === answer;
-      if (correct) score++;
-      results.push({ question: prompt, correctAnswer: answer, userAnswer: opt, isCorrect: correct });
-      currentQuestion++;
-      showQuestion();
-    };
-    container.appendChild(btn);
-  });
-}
-
-function showSummary() {
-  document.getElementById("quiz").style.display = "none";
-  const summaryDiv = document.getElementById("summary");
-  summaryDiv.style.display = "block";
-  summaryDiv.innerHTML = `<h3>Quiz Summary</h3><p>Score: ${score}/${results.length}</p>`;
-  results.forEach((r, i) => {
-    const p = document.createElement("p");
-    p.innerHTML = `Q${i + 1}: ${r.question} → <span class="${r.isCorrect ? 'correct' : 'wrong'}">${r.userAnswer}</span> (Correct: ${r.correctAnswer})`;
-    summaryDiv.appendChild(p);
-  });
-  const retryBtn = document.createElement("button");
-  retryBtn.innerText = "Back to Menu";
-  retryBtn.onclick = () => {
-    summaryDiv.style.display = "none";
-    document.getElementById("menu").style.display = "block";
-  };
-  summaryDiv.appendChild(retryBtn);
-}
-
-
 ["easyBtn", "mediumBtn", "hardBtn"].forEach(id => {
   document.getElementById(id).addEventListener("click", () => {
     mode = id.replace("Btn", "");
@@ -357,51 +197,107 @@ document.getElementById("timeLimit").addEventListener("input", (e) => {
   document.getElementById("timeDisplay").innerText = `${e.target.value} seconds`;
 });
 
-document.getElementById("timeLimit").addEventListener("input", (e) => {
-  document.getElementById("timeDisplay").innerText = `${e.target.value} seconds`;
-});
-
 document.getElementById("endQuizButton").addEventListener("click", showSummary);
 
+/* ---------- helpers ---------- */
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* ---------- single (fixed) generateOptions ---------- */
 function generateOptions(q) {
   const set = new Set();
+  if (!q) return ["Invalid"];
   let correctAnswer;
-  if (document.getElementById("countMode").checked) {
+  const countMode = document.getElementById("countMode").checked;
+  if (countMode) {
     correctAnswer = `${q.romaji} (${q.kanji})`;
   } else {
     correctAnswer = mode === "easy" ? q.number.toString()
                   : mode === "medium" ? q.romaji
                   : q.kanji;
   }
+  if (!correctAnswer) correctAnswer = "(undefined)";
   set.add(correctAnswer);
+
   while (set.size < 4) {
     const rand = numberData[Math.floor(Math.random() * numberData.length)];
-    const val = document.getElementById("countMode").checked ? `${rand.romaji} (${rand.kanji})`
+    if (!rand) continue;
+    const val = countMode ? `${rand.romaji} (${rand.kanji})`
               : mode === "easy" ? rand.number.toString()
               : mode === "medium" ? rand.romaji
               : rand.kanji;
-    set.add(val);
+    if (val) set.add(val);
   }
   return shuffle(Array.from(set));
+}
+
+/* ---------- start / ask / summary ---------- */
+function startQuiz() {
+  // difficulty default fallback
+  mode = document.querySelector(".menu .selected")?.id?.replace("Btn", "") || mode || "easy";
+  score = 0;
+  currentQuestion = 0;
+  results = [];
+
+  const isUnlimited = document.getElementById("unlimitedQuestions").checked;
+  const isCountMode = document.getElementById("countMode").checked;
+  const questionCount = parseInt(document.getElementById("questionCount").value, 10);
+  const noLimit = document.getElementById("noLimit").checked;
+  const timeLimit = parseInt(document.getElementById("timeLimit").value, 10);
+
+  clearInterval(timer);
+  if (!noLimit) {
+    timeLeft = timeLimit;
+    document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
+    timer = setInterval(() => {
+      timeLeft--;
+      document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        showSummary();
+      }
+    }, 1000);
+  } else {
+    document.getElementById("timer").innerText = "";
+  }
+
+  if (isCountMode) {
+    // 1..100 fester Katalog
+    questions = numberData.filter(n => n.number >= 1 && n.number <= 100);
+  } else {
+    questions = isUnlimited ? [] : shuffle([...numberData]).slice(0, questionCount);
+  }
+
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("quiz").style.display = "block";
+  showQuestion();
 }
 
 function showQuestion() {
   const isUnlimited = document.getElementById("unlimitedQuestions").checked;
   const isCountMode = document.getElementById("countMode").checked;
   const totalQuestions = (isUnlimited || isCountMode) ? null : questions.length;
+
   let q;
   if (isUnlimited) {
+    // endlos, aber nicht 2x hintereinander dieselbe Zahl
     do {
       q = numberData[Math.floor(Math.random() * numberData.length)];
-    } while (questions.length > 0 && q.number === questions[questions.length - 1].number);
+    } while (questions.length > 0 && q.number === questions[questions.length - 1]?.number);
     questions.push(q);
   } else {
     if (currentQuestion >= questions.length) return showSummary();
     q = questions[currentQuestion];
   }
+
   const options = generateOptions(q);
-  let prompt = "";
-  let answer = "";
+  let prompt = "", answer = "";
+
   if (isCountMode) {
     prompt = `${q.number}`;
     answer = `${q.romaji} (${q.kanji})`;
@@ -411,14 +307,17 @@ function showQuestion() {
   } else if (mode === "medium") {
     prompt = `${q.number}`;
     answer = q.romaji;
-  } else if (mode === "hard") {
+  } else {
     prompt = `${q.romaji}`;
     answer = q.kanji;
   }
+
   document.getElementById("progress").innerText = totalQuestions
     ? `Question ${currentQuestion + 1} of ${totalQuestions}`
     : `Question ${currentQuestion + 1}`;
+
   document.getElementById("question").innerText = prompt;
+
   const container = document.getElementById("options");
   container.innerHTML = "";
   options.forEach(opt => {
@@ -435,6 +334,25 @@ function showQuestion() {
   });
 }
 
+function showSummary() {
+  clearInterval(timer);
+  document.getElementById("quiz").style.display = "none";
+  const summaryDiv = document.getElementById("summary");
+  summaryDiv.style.display = "block";
+  summaryDiv.innerHTML = `<h3>Quiz Summary</h3><p>Score: ${score}/${results.length}</p>`;
+  results.forEach((r, i) => {
+    const p = document.createElement("p");
+    p.innerHTML = `Q${i + 1}: ${r.question} → <span class="${r.isCorrect ? 'correct' : 'wrong'}">${r.userAnswer}</span> (Correct: ${r.correctAnswer})`;
+    summaryDiv.appendChild(p);
+  });
+  const retryBtn = document.createElement("button");
+  retryBtn.innerText = "Back to Menu";
+  retryBtn.onclick = () => {
+    summaryDiv.style.display = "none";
+    document.getElementById("menu").style.display = "block";
+  };
+  summaryDiv.appendChild(retryBtn);
+}
 </script>
 </body>
 </html>
