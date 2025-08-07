@@ -1,358 +1,443 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Japanese Number Quiz</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-      background-color: #121212;
-      color: #e0e0e0;
-    }
-    .quiz-box {
-      margin: 0 auto;
-      width: 320px;
-      padding: 20px;
-      border: 1px solid #444;
-      border-radius: 10px;
-      background-color: #1e1e1e;
-    }
-    .question { font-size: 24px; margin-bottom: 20px; }
-    .options button,
-    .menu button,
-    #start-button,
-    #endQuizButton,
-    #summary button {
-      display: block;
-      margin: 10px auto;
-      padding: 12px;
-      width: 100%;
-      background-color: #333;
-      color: #fff;
-      border: 1px solid #555;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    }
-    .options button:hover,
-    .menu button:hover,
-    #start-button:hover,
-    #endQuizButton:hover,
-    #summary button:hover { background-color: #444; }
-    .menu {
-      display: flex; flex-direction: column; gap: 10px; align-items: stretch;
-    }
-    label, p { margin: 0; font-size: 14px; text-align: left; }
-    input[type="range"] { width: 100%; }
-    .menu input[type="checkbox"] { margin-right: 5px; }
-    ul#scoreList { margin-top: 10px; text-align: left; padding-left: 20px; }
-    #result { margin-top: 20px; font-weight: bold; }
-    #timer { margin-top: 10px; font-size: 18px; color: #ff9800; }
-    #summary { margin-top: 20px; }
-    .correct { color: lightgreen; }
-    .wrong { color: salmon; }
-    .selected { font-weight: bold; text-decoration: underline; }
-    #difficultyDisplay { margin-top: 10px; font-size: 16px; }
-    #progress { margin-top: 10px; font-size: 16px; color: #90caf9; }
-    .clickable { cursor: pointer; text-decoration: underline; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Japanese Number Quiz — mit globalem Leaderboard (Supabase)</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; margin: 0; background:#121212; color:#e0e0e0; }
+  .wrap { max-width: 720px; margin: 40px auto; padding: 0 16px; }
+  .quiz-box { margin: 0 auto; padding: 20px; border: 1px solid #444; border-radius: 10px; background: #1e1e1e; }
+  h1 { margin: 0 0 10px; font-size: 26px; }
+  .question { font-size: 24px; margin-bottom: 16px; }
+  .options button, .menu button, #start-button, #endQuizButton, #summary button {
+    display: block; margin: 10px auto; padding: 12px; width: 100%;
+    background: #333; color: #fff; border: 1px solid #555; border-radius: 8px; cursor: pointer; transition: background .2s;
+  }
+  .options button:hover, .menu button:hover, #start-button:hover, #endQuizButton:hover, #summary button:hover { background:#444; }
+  .menu { display:flex; flex-direction:column; gap:10px; align-items:stretch; text-align:left; }
+  label, p { margin: 0; font-size: 14px; }
+  input[type="range"] { width: 100%; }
+  .menu input[type="checkbox"] { margin-right: 6px; }
+  #result { margin-top: 10px; font-weight: bold; }
+  #timer { margin-top: 10px; font-size: 18px; color: #ff9800; text-align:left; }
+  #summary { margin-top: 20px; text-align:left; }
+  .correct { color: #7dff9b; }
+  .wrong { color: #ff7b7b; }
+  .selected { font-weight: bold; text-decoration: underline; }
+  #difficultyDisplay, #progress { margin-top: 8px; font-size: 16px; }
+  .sm { opacity:.8; font-size: 12px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .flex { display:flex; gap:8px; }
+  input[type="text"] { padding:8px; border-radius:8px; border:1px solid #555; background:#141414; color:#e0e0e0; width:100%; }
+  ol#lbList { margin: 8px 0 0 18px; }
+  .tag { display:inline-block; margin-left:8px; padding:2px 8px; border-radius:999px; border:1px solid #444; background:#151515; font-size:12px; }
+</style>
 </head>
 <body>
+<div class="wrap">
+  <h1>Japanese Number Quiz</h1>
+
+  <!-- MENU -->
   <div class="quiz-box" id="menu">
-    <h2>Choose Difficulty</h2>
     <div class="menu">
-      <p><strong>1. Choose Difficulty:</strong></p>
-      <button id="easyBtn">Easy</button>
-      <button id="mediumBtn">Medium</button>
-      <button id="hardBtn">Hard</button>
+      <p><strong>1) Schwierigkeit wählen:</strong></p>
+      <div class="flex">
+        <button id="easyBtn">Easy</button>
+        <button id="mediumBtn">Medium</button>
+        <button id="hardBtn">Hard</button>
+      </div>
       <div id="difficultyDisplay">Selected: None</div>
 
-      <p><strong>2. Time Limit:</strong></p>
-      <label><input type="checkbox" id="noLimit" checked> No Limit</label><br>
+      <p><strong>2) Zeitlimit:</strong></p>
+      <label><input type="checkbox" id="noLimit" checked> Kein Zeitlimit</label>
       <input type="range" id="timeLimit" min="20" max="300" value="60" disabled />
-      <span id="timeDisplay">Disabled</span>
+      <div id="timeDisplay" class="sm">Disabled</div>
 
-      <p><strong>3. Question Count:</strong></p>
-      <label><input type="checkbox" id="unlimitedQuestions"> Unlimited Questions</label><br>
+      <p><strong>3) Anzahl Fragen:</strong></p>
+      <label><input type="checkbox" id="unlimitedQuestions"> Unbegrenzt</label>
       <input type="range" id="questionCount" min="5" max="100" value="10" />
-      <span id="questionCountDisplay">10 questions</span>
-      <br><label><input type="checkbox" id="countMode"> Count Mode (1 to 100)</label>
+      <div id="questionCountDisplay" class="sm">10 questions</div>
+
+      <label class="row"><input type="checkbox" id="countMode"> Count Mode (Anzeige: Zahl → Antwort: Romaji + Kanji)</label>
 
       <button id="start-button">Start Quiz</button>
-      <ul id="scoreList"></ul>
+      <div class="sm">Highscores sind global geteilt (Supabase) — unten in der Zusammenfassung eintragen.</div>
     </div>
   </div>
 
+  <!-- QUIZ -->
   <div class="quiz-box" id="quiz" style="display:none;">
-    <button id="endQuizButton" style="background-color:#880000; color:white; margin-bottom:10px;">End Quiz</button>
+    <button id="endQuizButton" style="background:#880000; color:white; margin-bottom:10px;">Quiz beenden</button>
     <div id="progress"></div>
-    <div class="question" id="question">Loading...</div>
+    <div class="question" id="question">Loading…</div>
     <div class="options" id="options"></div>
     <div id="timer"></div>
   </div>
 
+  <!-- SUMMARY + LEADERBOARD -->
   <div class="quiz-box" id="summary" style="display:none;"></div>
 
-<script>
-let questions = [];
-let currentQuestion = 0;
-let score = 0;
-let mode = "easy";
-let timer = null;
-let timeLeft = 0;
-let results = [];
-const numberData = [];
+  <!-- ===== Supabase Config (deine echten Keys) ===== -->
+  <script>
+    // Deine Supabase-Projektwerte (Anon-Key darf öffentlich sein; RLS schützt die DB)
+    window.SUPABASE_URL = "https://btcsltamxkaguyhtgcyr.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ0Y3NsdGFteGthZ3V5aHRnY3lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1OTU5NTAsImV4cCI6MjA3MDE3MTk1MH0.ttIP4OFQQAhR73Sihrj_RmLU9hk50i7qfrbKwsYN_C0";
+  </script>
 
-/* ---------- FIX: 10,000 support ---------- */
-function toKanji(n) {
-  if (n === 10000) return "一万"; // ichiman
-  const digits = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-  const units = ['', '十', '百', '千']; // up to 9999
-  const str = String(n);
-  let kanji = '';
-  for (let i = 0; i < str.length; i++) {
-    const digit = Number(str[i]);
-    const pos = str.length - i - 1; // 0->ones,1->tens,2->hundreds,3->thousands
-    if (pos > 3) break; // safety (we handled 10000 above)
-    if (digit === 0) continue;
-    if (digit === 1 && pos !== 0) {
-      kanji += units[pos];
-    } else {
-      kanji += digits[digit] + units[pos];
+  <!-- ===== Leaderboard API (Supabase oder lokaler Fallback) ===== -->
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const url = window.SUPABASE_URL || "";
+    const key = window.SUPABASE_ANON_KEY || "";
+    const supabase = (url && key) ? createClient(url, key) : null;
+
+    function getFingerprint(){
+      const k = "quiz_fingerprint_v1";
+      let f = localStorage.getItem(k);
+      if (!f) { f = crypto.getRandomValues(new Uint32Array(4)).join("-"); localStorage.setItem(k, f); }
+      return f;
     }
-  }
-  return kanji || '零';
-}
 
-function toRomaji(n) {
-  if (n === 10000) return "ichiman"; // 10,000
-  const ones = ["", "ichi", "ni", "san", "yon", "go", "roku", "nana", "hachi", "kyuu"];
-  const tens = ["", "juu", "ni juu", "san juu", "yon juu", "go juu", "roku juu", "nana juu", "hachi juu", "kyuu juu"];
-  const hundreds = ["", "hyaku", "ni hyaku", "san byaku", "yon hyaku", "go hyaku", "roppyaku", "nana hyaku", "happyaku", "kyuu hyaku"];
-  const thousands = ["", "sen", "ni sen", "san zen", "yon sen", "go sen", "roku sen", "nana sen", "hassen", "kyuu sen"];
-  let r = "";
-  if (n >= 1000) r += thousands[Math.floor(n / 1000)] + " ";
-  if ((n % 1000) >= 100) r += hundreds[Math.floor((n % 1000) / 100)] + " ";
-  if ((n % 100) >= 10) r += tens[Math.floor((n % 100) / 10)] + " ";
-  if ((n % 10) > 0 || r.trim() === "") r += ones[n % 10];
-  return r.trim();
-}
+    window.LeaderboardAPI = {
+      backend: supabase ? "supabase" : "local",
+      async submitScore({ name, points, mode }){
+        if (!name || name.length < 3 || name.length > 16) throw new Error("Name 3–16 Zeichen.");
+        if (!Number.isInteger(points) || points < 0) throw new Error("Ungültige Punktzahl.");
+        if (!mode || mode.length > 24) throw new Error("Mode fehlt/zu lang.");
+        const fingerprint = getFingerprint();
 
-/* ---------- build dataset (incl. 10000) ---------- */
-for (let i = 1; i <= 99; i++) {
-  numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
-}
-for (let i = 100; i <= 1000; i += 100) {
-  numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
-}
-for (let i = 2000; i <= 10000; i += 1000) {
-  numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
-}
+        if (supabase){
+          const { error } = await supabase.from("scores").insert({ name, points, mode, fingerprint });
+          if (error) throw error;
+        } else {
+          const k = `scores_local_${mode}`;
+          const list = JSON.parse(localStorage.getItem(k) || "[]");
+          list.push({ name, points, mode, created_at: new Date().toISOString(), fingerprint });
+          localStorage.setItem(k, JSON.stringify(list));
+        }
+        return true;
+      },
 
-/* ---------- UI bindings ---------- */
-document.getElementById("start-button").addEventListener("click", startQuiz);
-["easyBtn", "mediumBtn", "hardBtn"].forEach(id => {
-  document.getElementById(id).addEventListener("click", () => {
-    mode = id.replace("Btn", "");
-    document.getElementById("difficultyDisplay").innerText = `Selected: ${mode}`;
-    ["easyBtn", "mediumBtn", "hardBtn"].forEach(b => document.getElementById(b).classList.remove("selected"));
-    document.getElementById(id).classList.add("selected");
-  });
-});
-
-document.getElementById("questionCount").addEventListener("input", (e) => {
-  document.getElementById("questionCountDisplay").innerText = `${e.target.value} questions`;
-});
-
-document.getElementById("unlimitedQuestions").addEventListener("change", () => {
-  const unlimitedCheckbox = document.getElementById("unlimitedQuestions");
-  const questionSlider = document.getElementById("questionCount");
-  const questionDisplay = document.getElementById("questionCountDisplay");
-  if (unlimitedCheckbox.checked) {
-    questionSlider.disabled = true;
-    questionDisplay.innerText = "Unlimited";
-  } else {
-    questionSlider.disabled = false;
-    questionDisplay.innerText = `${questionSlider.value} questions`;
-  }
-});
-
-document.getElementById("noLimit").addEventListener("change", () => {
-  const limitCheckbox = document.getElementById("noLimit");
-  const timeSlider = document.getElementById("timeLimit");
-  const timeDisplay = document.getElementById("timeDisplay");
-  if (limitCheckbox.checked) {
-    timeSlider.disabled = true;
-    timeDisplay.innerText = "Disabled";
-  } else {
-    timeSlider.disabled = false;
-    timeDisplay.innerText = `${timeSlider.value} seconds`;
-  }
-});
-
-document.getElementById("timeLimit").addEventListener("input", (e) => {
-  document.getElementById("timeDisplay").innerText = `${e.target.value} seconds`;
-});
-
-document.getElementById("endQuizButton").addEventListener("click", showSummary);
-
-/* ---------- helpers ---------- */
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-/* ---------- single (fixed) generateOptions ---------- */
-function generateOptions(q) {
-  const set = new Set();
-  if (!q) return ["Invalid"];
-  let correctAnswer;
-  const countMode = document.getElementById("countMode").checked;
-  if (countMode) {
-    correctAnswer = `${q.romaji} (${q.kanji})`;
-  } else {
-    correctAnswer = mode === "easy" ? q.number.toString()
-                  : mode === "medium" ? q.romaji
-                  : q.kanji;
-  }
-  if (!correctAnswer) correctAnswer = "(undefined)";
-  set.add(correctAnswer);
-
-  while (set.size < 4) {
-    const rand = numberData[Math.floor(Math.random() * numberData.length)];
-    if (!rand) continue;
-    const val = countMode ? `${rand.romaji} (${rand.kanji})`
-              : mode === "easy" ? rand.number.toString()
-              : mode === "medium" ? rand.romaji
-              : rand.kanji;
-    if (val) set.add(val);
-  }
-  return shuffle(Array.from(set));
-}
-
-/* ---------- start / ask / summary ---------- */
-function startQuiz() {
-  // difficulty default fallback
-  mode = document.querySelector(".menu .selected")?.id?.replace("Btn", "") || mode || "easy";
-  score = 0;
-  currentQuestion = 0;
-  results = [];
-
-  const isUnlimited = document.getElementById("unlimitedQuestions").checked;
-  const isCountMode = document.getElementById("countMode").checked;
-  const questionCount = parseInt(document.getElementById("questionCount").value, 10);
-  const noLimit = document.getElementById("noLimit").checked;
-  const timeLimit = parseInt(document.getElementById("timeLimit").value, 10);
-
-  clearInterval(timer);
-  if (!noLimit) {
-    timeLeft = timeLimit;
-    document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
-    timer = setInterval(() => {
-      timeLeft--;
-      document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
-      if (timeLeft <= 0) {
-        clearInterval(timer);
-        showSummary();
+      async topScores({ mode, limit = 10 }){
+        if (supabase){
+          const { data, error } = await supabase
+            .from("scores")
+            .select("name, points, mode, created_at")
+            .eq("mode", mode)
+            .order("points", { ascending: false })
+            .order("created_at", { ascending: true })
+            .limit(limit);
+          if (error) throw error;
+          return data || [];
+        } else {
+          const k = `scores_local_${mode}`;
+          const list = JSON.parse(localStorage.getItem(k) || "[]");
+          return list.sort((a,b)=> b.points - a.points || new Date(a.created_at) - new Date(b.created_at)).slice(0, limit);
+        }
       }
-    }, 1000);
-  } else {
-    document.getElementById("timer").innerText = "";
-  }
-
-  if (isCountMode) {
-    // 1..100 fester Katalog
-    questions = numberData.filter(n => n.number >= 1 && n.number <= 100);
-  } else {
-    questions = isUnlimited ? [] : shuffle([...numberData]).slice(0, questionCount);
-  }
-
-  document.getElementById("menu").style.display = "none";
-  document.getElementById("quiz").style.display = "block";
-  showQuestion();
-}
-
-function showQuestion() {
-  const isUnlimited = document.getElementById("unlimitedQuestions").checked;
-  const isCountMode = document.getElementById("countMode").checked;
-  const totalQuestions = (isUnlimited || isCountMode) ? null : questions.length;
-
-  let q;
-  if (isUnlimited) {
-    // endlos, aber nicht 2x hintereinander dieselbe Zahl
-    do {
-      q = numberData[Math.floor(Math.random() * numberData.length)];
-    } while (questions.length > 0 && q.number === questions[questions.length - 1]?.number);
-    questions.push(q);
-  } else {
-    if (currentQuestion >= questions.length) return showSummary();
-    q = questions[currentQuestion];
-  }
-
-  const options = generateOptions(q);
-  let prompt = "", answer = "";
-
-  if (isCountMode) {
-    prompt = `${q.number}`;
-    answer = `${q.romaji} (${q.kanji})`;
-  } else if (mode === "easy") {
-    prompt = `${q.kanji} (${q.romaji})`;
-    answer = q.number.toString();
-  } else if (mode === "medium") {
-    prompt = `${q.number}`;
-    answer = q.romaji;
-  } else {
-    prompt = `${q.romaji}`;
-    answer = q.kanji;
-  }
-
-  document.getElementById("progress").innerText = totalQuestions
-    ? `Question ${currentQuestion + 1} of ${totalQuestions}`
-    : `Question ${currentQuestion + 1}`;
-
-  document.getElementById("question").innerText = prompt;
-
-  const container = document.getElementById("options");
-  container.innerHTML = "";
-  options.forEach(opt => {
-    const btn = document.createElement("button");
-    btn.innerText = opt;
-    btn.onclick = () => {
-      const correct = opt === answer;
-      if (correct) score++;
-      results.push({ question: prompt, correctAnswer: answer, userAnswer: opt, isCorrect: correct });
-      currentQuestion++;
-      showQuestion();
     };
-    container.appendChild(btn);
-  });
-}
+  </script>
 
-function showSummary() {
-  clearInterval(timer);
-  document.getElementById("quiz").style.display = "none";
-  const summaryDiv = document.getElementById("summary");
-  summaryDiv.style.display = "block";
-  summaryDiv.innerHTML = `<h3>Quiz Summary</h3><p>Score: ${score}/${results.length}</p>`;
-  results.forEach((r, i) => {
-    const p = document.createElement("p");
-    p.innerHTML = `Q${i + 1}: ${r.question} → <span class="${r.isCorrect ? 'correct' : 'wrong'}">${r.userAnswer}</span> (Correct: ${r.correctAnswer})`;
-    summaryDiv.appendChild(p);
-  });
-  const retryBtn = document.createElement("button");
-  retryBtn.innerText = "Back to Menu";
-  retryBtn.onclick = () => {
-    summaryDiv.style.display = "none";
-    document.getElementById("menu").style.display = "block";
-  };
-  summaryDiv.appendChild(retryBtn);
-}
-</script>
+  <!-- ===== Quiz Logic (inkl. 10'000-Fix + Leaderboard-Integration) ===== -->
+  <script>
+    let questions = [];
+    let currentQuestion = 0;
+    let score = 0;
+    let mode = "easy";
+    let timer = null;
+    let timeLeft = 0;
+    let results = [];
+    const numberData = [];
+
+    /* ---- Zahlendarstellung (inkl. 10000) ---- */
+    function toKanji(n) {
+      if (n === 10000) return "一万"; // ichiman
+      const digits = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+      const units  = ['', '十', '百', '千']; // bis 9999
+      const s = String(n);
+      let out = '';
+      for (let i = 0; i < s.length; i++) {
+        const d = Number(s[i]);
+        const pos = s.length - i - 1; // 0 ones, 1 tens, 2 hundreds, 3 thousands
+        if (pos > 3) break;
+        if (d === 0) continue;
+        if (d === 1 && pos !== 0) out += units[pos];
+        else out += digits[d] + units[pos];
+      }
+      return out || '零';
+    }
+    function toRomaji(n) {
+      if (n === 10000) return "ichiman";
+      const ones = ["", "ichi", "ni", "san", "yon", "go", "roku", "nana", "hachi", "kyuu"];
+      const tens = ["", "juu", "ni juu", "san juu", "yon juu", "go juu", "roku juu", "nana juu", "hachi juu", "kyuu juu"];
+      const hundreds = ["", "hyaku", "ni hyaku", "san byaku", "yon hyaku", "go hyaku", "roppyaku", "nana hyaku", "happyaku", "kyuu hyaku"];
+      const thousands = ["", "sen", "ni sen", "san zen", "yon sen", "go sen", "roku sen", "nana sen", "hassen", "kyuu sen"];
+      let r = "";
+      if (n >= 1000) r += thousands[Math.floor(n / 1000)] + " ";
+      if ((n % 1000) >= 100) r += hundreds[Math.floor((n % 1000) / 100)] + " ";
+      if ((n % 100) >= 10) r += tens[Math.floor((n % 100) / 10)] + " ";
+      if ((n % 10) > 0 || r.trim() === "") r += ones[n % 10];
+      return r.trim();
+    }
+
+    /* ---- Datensatz aufbauen (1–99, Hunderter bis 1000, Tausender bis 10000, inkl. 10000) ---- */
+    for (let i = 1; i <= 99; i++) numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
+    for (let i = 100; i <= 1000; i += 100) numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
+    for (let i = 2000; i <= 10000; i += 1000) numberData.push({ number: i, kanji: toKanji(i), romaji: toRomaji(i) });
+    // Sicherstellen, dass 10000 drin ist (falls Loop es verfehlt hätte)
+    if (!numberData.some(n => n.number === 10000)) numberData.push({ number: 10000, kanji: toKanji(10000), romaji: toRomaji(10000) });
+
+    /* ---- UI Bindings ---- */
+    document.getElementById("start-button").addEventListener("click", startQuiz);
+    ["easyBtn", "mediumBtn", "hardBtn"].forEach(id => {
+      document.getElementById(id).addEventListener("click", () => {
+        mode = id.replace("Btn", "");
+        document.getElementById("difficultyDisplay").innerText = `Selected: ${mode}`;
+        ["easyBtn", "mediumBtn", "hardBtn"].forEach(b => document.getElementById(b).classList.remove("selected"));
+        document.getElementById(id).classList.add("selected");
+      });
+    });
+
+    document.getElementById("questionCount").addEventListener("input", (e) => {
+      document.getElementById("questionCountDisplay").innerText = `${e.target.value} questions`;
+    });
+
+    document.getElementById("unlimitedQuestions").addEventListener("change", () => {
+      const unlimited = document.getElementById("unlimitedQuestions").checked;
+      const slider = document.getElementById("questionCount");
+      const disp = document.getElementById("questionCountDisplay");
+      slider.disabled = unlimited;
+      disp.innerText = unlimited ? "Unlimited" : `${slider.value} questions`;
+    });
+
+    document.getElementById("noLimit").addEventListener("change", () => {
+      const noLimit = document.getElementById("noLimit").checked;
+      const slider = document.getElementById("timeLimit");
+      const disp = document.getElementById("timeDisplay");
+      slider.disabled = noLimit;
+      disp.innerText = noLimit ? "Disabled" : `${slider.value} seconds`;
+    });
+    document.getElementById("timeLimit").addEventListener("input", (e) => {
+      document.getElementById("timeDisplay").innerText = `${e.target.value} seconds`;
+    });
+
+    document.getElementById("endQuizButton").addEventListener("click", showSummary);
+
+    /* ---- Helpers ---- */
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function generateOptions(q) {
+      const set = new Set();
+      if (!q) return ["Invalid"];
+      let correctAnswer;
+      const countMode = document.getElementById("countMode").checked;
+      if (countMode) {
+        correctAnswer = `${q.romaji} (${q.kanji})`;
+      } else {
+        correctAnswer = mode === "easy" ? q.number.toString()
+                      : mode === "medium" ? q.romaji
+                      : q.kanji;
+      }
+      if (!correctAnswer) correctAnswer = "(undefined)";
+      set.add(correctAnswer);
+
+      while (set.size < 4) {
+        const rand = numberData[Math.floor(Math.random() * numberData.length)];
+        if (!rand) continue;
+        const val = countMode ? `${rand.romaji} (${rand.kanji})`
+                  : mode === "easy" ? rand.number.toString()
+                  : mode === "medium" ? rand.romaji
+                  : rand.kanji;
+        if (val) set.add(val);
+      }
+      return shuffle(Array.from(set));
+    }
+
+    function startQuiz() {
+      mode = (document.querySelector(".menu .selected")?.id?.replace("Btn", "") || mode || "easy").toLowerCase();
+      score = 0;
+      currentQuestion = 0;
+      results = [];
+
+      const isUnlimited = document.getElementById("unlimitedQuestions").checked;
+      const isCountMode = document.getElementById("countMode").checked;
+      const questionCount = parseInt(document.getElementById("questionCount").value, 10);
+      const noLimit = document.getElementById("noLimit").checked;
+      const timeLimit = parseInt(document.getElementById("timeLimit").value, 10);
+
+      clearInterval(timer);
+      if (!noLimit) {
+        timeLeft = timeLimit;
+        document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
+        timer = setInterval(() => {
+          timeLeft--;
+          document.getElementById("timer").innerText = `Time: ${timeLeft}s`;
+          if (timeLeft <= 0) {
+            clearInterval(timer);
+            showSummary();
+          }
+        }, 1000);
+      } else {
+        document.getElementById("timer").innerText = "";
+      }
+
+      if (isCountMode) {
+        questions = numberData.filter(n => n.number >= 1 && n.number <= 100);
+      } else {
+        questions = isUnlimited ? [] : shuffle([...numberData]).slice(0, questionCount);
+      }
+
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("quiz").style.display = "block";
+      showQuestion();
+    }
+
+    function showQuestion() {
+      const isUnlimited = document.getElementById("unlimitedQuestions").checked;
+      const isCountMode = document.getElementById("countMode").checked;
+      const totalQuestions = (isUnlimited || isCountMode) ? null : questions.length;
+
+      let q;
+      if (isUnlimited) {
+        do { q = numberData[Math.floor(Math.random() * numberData.length)]; }
+        while (questions.length > 0 && q.number === questions[questions.length - 1]?.number);
+        questions.push(q);
+      } else {
+        if (currentQuestion >= questions.length) return showSummary();
+        q = questions[currentQuestion];
+      }
+
+      const options = generateOptions(q);
+      let prompt = "", answer = "";
+
+      if (isCountMode) {
+        prompt = `${q.number}`;
+        answer = `${q.romaji} (${q.kanji})`;
+      } else if (mode === "easy") {
+        prompt = `${q.kanji} (${q.romaji})`;
+        answer = q.number.toString();
+      } else if (mode === "medium") {
+        prompt = `${q.number}`;
+        answer = q.romaji;
+      } else {
+        prompt = `${q.romaji}`;
+        answer = q.kanji;
+      }
+
+      document.getElementById("progress").innerText = totalQuestions
+        ? `Question ${currentQuestion + 1} of ${totalQuestions}`
+        : `Question ${currentQuestion + 1}`;
+
+      document.getElementById("question").innerText = prompt;
+
+      const container = document.getElementById("options");
+      container.innerHTML = "";
+      options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.innerText = opt;
+        btn.onclick = () => {
+          const correct = opt === answer;
+          if (correct) score++;
+          results.push({ question: prompt, correctAnswer: answer, userAnswer: opt, isCorrect: correct });
+          currentQuestion++;
+          showQuestion();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    async function showSummary() {
+      clearInterval(timer);
+      document.getElementById("quiz").style.display = "none";
+      const summaryDiv = document.getElementById("summary");
+      summaryDiv.style.display = "block";
+      summaryDiv.innerHTML = `<h3>Quiz Summary</h3><p>Score: ${score}/${results.length} <span class="tag">${mode}</span></p>`;
+
+      // Leaderboard Box
+      const lbBox = document.createElement("div");
+      lbBox.id = "lbBox";
+      lbBox.style.marginTop = "16px";
+      lbBox.innerHTML = `
+        <h4>Globales Leaderboard (<span id="lbMode"></span>)</h4>
+        <div class="sm" id="lbBackendInfo" style="margin-bottom:6px;"></div>
+        <div class="row">
+          <input id="playerName" maxlength="16" placeholder="Dein Name (3–16)" />
+          <button id="btnSubmitScore" style="width:auto; padding:8px 12px;">Score eintragen</button>
+        </div>
+        <ol id="lbList"></ol>
+      `;
+      summaryDiv.appendChild(lbBox);
+
+      const lbMode = document.getElementById("lbMode");
+      const lbInfo = document.getElementById("lbBackendInfo");
+      const lbList = document.getElementById("lbList");
+      const btn = document.getElementById("btnSubmitScore");
+      const nameInput = document.getElementById("playerName");
+
+      lbMode.textContent = mode;
+      lbInfo.textContent = window.LeaderboardAPI.backend === "supabase"
+        ? "Backend: Supabase (global geteilt)"
+        : "Backend: lokal (nur dein Browser — trage SUPABASE_URL/KEY ein)";
+
+      await refreshLeaderboard();
+
+      btn.onclick = async () => {
+        try {
+          const name = nameInput.value.trim();
+          await window.LeaderboardAPI.submitScore({ name, points: score, mode });
+          nameInput.value = "";
+          await refreshLeaderboard();
+          btn.textContent = "Gespeichert ✓";
+          setTimeout(()=> btn.textContent = "Score eintragen", 1200);
+        } catch (e) {
+          alert("Eintragen fehlgeschlagen: " + e.message);
+          console.error(e);
+        }
+      };
+
+      results.forEach((r, i) => {
+        const p = document.createElement("p");
+        p.innerHTML = `Q${i + 1}: ${r.question} → <span class="${r.isCorrect ? 'correct' : 'wrong'}">${escapeHtml(r.userAnswer)}</span> (Correct: ${escapeHtml(r.correctAnswer)})`;
+        summaryDiv.appendChild(p);
+      });
+
+      const retryBtn = document.createElement("button");
+      retryBtn.innerText = "Zurück zum Menü";
+      retryBtn.onclick = () => {
+        summaryDiv.style.display = "none";
+        document.getElementById("menu").style.display = "block";
+      };
+      summaryDiv.appendChild(retryBtn);
+
+      async function refreshLeaderboard(){
+        lbList.innerHTML = "<li>lade…</li>";
+        try {
+          const rows = await window.LeaderboardAPI.topScores({ mode, limit: 10 });
+          lbList.innerHTML = rows.length
+            ? rows.map((r, i) => `<li>#${i+1} — <b>${escapeHtml(r.name)}</b> · ${r.points} pts <span class="sm">(${new Date(r.created_at).toLocaleDateString()})</span></li>`).join("")
+            : "<li>Noch keine Einträge</li>";
+        } catch(e){
+          lbList.innerHTML = "<li>Fehler beim Laden</li>";
+          console.error(e);
+        }
+      }
+
+      function escapeHtml(s){
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+    }
+
+    // Expose showSummary in global scope (Button nutzt es)
+    window.showSummary = showSummary;
+  </script>
+</div>
 </body>
 </html>
